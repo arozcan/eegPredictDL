@@ -1,8 +1,2 @@
 .idea/
-data/featData/
-data/imgData/
-data/lblData/
-images/
-model/
-test/
 *.pyc
