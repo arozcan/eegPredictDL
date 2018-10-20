@@ -1,13 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 import numpy as np
-import time
-import json
-import warnings
-from collections import deque
-from collections import OrderedDict
-from collections import Iterable
-from functions.model import restore_network_params
 
 
 class CallbackList(object):
@@ -218,7 +211,8 @@ class EarlyStopping(Callback):
                  verbose=0,
                  mode='auto',
                  baseline=None,
-                 restore_best_weights=True):
+                 restore_best_weights=True,
+                 min_value=0.0001):
         super(EarlyStopping, self).__init__()
 
         self.monitor = monitor
@@ -230,6 +224,7 @@ class EarlyStopping(Callback):
         self.stopped_epoch = 0
         self.restore_best_weights = restore_best_weights
         self.best_weights = None
+        self.min_value= min_value
 
         if mode not in ['auto', 'min', 'max']:
             mode = 'auto'
@@ -269,6 +264,8 @@ class EarlyStopping(Callback):
             self.wait = 0
             if self.restore_best_weights:
                 self.best_weights = self.model.model.get_weights(self.model)
+            if current <= self.min_value:
+                self.wait = self.patience
         else:
             self.wait += 1
             if self.wait >= self.patience:

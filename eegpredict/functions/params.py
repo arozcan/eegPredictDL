@@ -4,9 +4,10 @@ from __future__ import print_function
 import numpy as np
 from functions.globals import ModelParams
 
-def init_model_parameters(modelName, pixelCount):
-    modelParameters = ModelParams()
-    modelParameters.modelName = modelName
+def init_model_parameters(jobParams):
+    modelName = jobParams.get("modelName")
+    pixelCount = jobParams.get("pixelCount")
+    modelParameters = ModelParams(modelName=modelName)
     if modelName == 'model_svm':
 
         modelParameters.modelType = "svm"
@@ -72,7 +73,7 @@ def init_model_parameters(modelName, pixelCount):
         modelParameters.denseNumUnit = [512, 512, 512]
 
         # Giriste dropout
-        modelParameters.dropoutInput = 0.2
+        modelParameters.dropoutInput = 0.0
 
         # Tam bagli katmanda dropout
         modelParameters.dropoutDense = 0.5
@@ -383,7 +384,16 @@ def init_model_parameters(modelName, pixelCount):
         else:
             exit('Model does not support given pixelCount!')
 
-    return modelParameters
+    jobParams.update({'genImageType': modelParameters.genImageType})
+    jobParams.update({'seqWinCount': modelParameters.seqWinCount})
+    return modelParameters, jobParams
+
+
+def init_params(paramList, inParams):
+    for params, values in zip(inParams.keys(), inParams.values()):
+        if params in paramList.__dict__:
+            paramList.__setattr__(params, values)
+    return paramList
 
 
 def init_feature_types(psd=True, moment=True, hjorth=True):

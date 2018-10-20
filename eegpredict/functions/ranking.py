@@ -50,16 +50,20 @@ def my_binary_clf_curve(y_true, y_score, pos_label=1, neg_label=0, refractory_pe
     pos_idx=find_ranges(y_true, val=pos_label)
     neg_idx=find_ranges(y_true, val=neg_label)
 
-    imp_tresh = []
+
+    min_pos_score = np.min([np.max(y_score[idx[0]:idx[1]]) for idx in pos_idx])
+
+
+
+    imp_tresh = [0,1]
     for idx in pos_idx:
         imp_tresh.append(np.max(y_score[range(idx[0], idx[1])]))
-
-    thresholds = np.arange(0, 1, float(1)/point)
-    thresholds = np.sort(np.unique(np.hstack((thresholds, imp_tresh))))[::-1]
+    tresholds = np.arange(min_pos_score, 1, float(1)/point)
+    tresholds = np.sort(np.unique(np.hstack((tresholds, imp_tresh))))[::-1]
 
     tps = []
     fps = []
-    for tr, tr_idx in zip(thresholds, range(len(thresholds))):
+    for tr in tresholds:
         tps.append(0)
         fps.append(0)
         if np.count_nonzero(y_score >= tr):
@@ -67,13 +71,13 @@ def my_binary_clf_curve(y_true, y_score, pos_label=1, neg_label=0, refractory_pe
             while i < len(y_true):
                 if y_score[i] >= tr:
                     if y_true[i] == pos_label:
-                        tps[tr_idx] += 1
+                        tps[-1] += 1
                         if np.count_nonzero(np.transpose(pos_idx)[1]>i):
                             i = pos_idx[np.squeeze(np.where(np.transpose(pos_idx)[1]>i)).flat[0]][1] + 1
                         else:
                             i += refractory_period
                     elif y_true[i] == neg_label:
-                        fps[tr_idx] += 1
+                        fps[-1] += 1
                         if pos_label in y_true[i:i+refractory_period]:
                             if np.count_nonzero(y_true[i:] == pos_label):
                                 i += np.min(np.squeeze(np.where(y_true[i:] == pos_label)))
@@ -95,7 +99,7 @@ def my_binary_clf_curve(y_true, y_score, pos_label=1, neg_label=0, refractory_pe
                             break
 
 
-    return np.asarray(fps, dtype=float), np.asarray(tps, dtype=float), np.asarray(thresholds)
+    return np.asarray(fps, dtype=float), np.asarray(tps, dtype=float), np.asarray(tresholds)
 
 def my_roc_curve(y_true, y_score, pos_label=1, neg_label=0, refractory_period=1, rate_period=1, point=1000):
     """Compute Receiver operating characteristic (ROC)
@@ -206,5 +210,8 @@ def my_roc_curve(y_true, y_score, pos_label=1, neg_label=0, refractory_period=1,
         tpr = np.repeat(np.nan, tps.shape)
     else:
         tpr = tps / tps[-1]
+
+    tpr = np.r_[0, tpr]
+    fpr = np.r_[0, fpr]
 
     return fpr, tpr, thresholds

@@ -32,6 +32,8 @@ def gen_features(windowLength, overlap):
             # check eeg records labels
             # if more than 3 signal absent don't generate feats
             if checkSignalLabels(signal_labels) > 3:
+                f._close()
+                del f
                 continue
 
             # read signal
@@ -52,21 +54,21 @@ def gen_features(windowLength, overlap):
             scipy.io.savemat(feat_file_name, {'features': np.asarray(features)})
 
 
-def gen_images_from_features(windowLength, overlap, pixelCount=[8, 8], genType='basic', method='RBF', edgeless=True):
+def gen_images_from_features(windowLength, overlap, pixelCount=[8, 8], genImageType='basic', method='RBF', edgeless=True):
 
     # Load Locations
-    if genType == 'basic':
+    if genImageType == 'basic':
         locs_2d = load_locations(withProjection=False)
-    elif genType == 'advanced':
+    elif genImageType == 'advanced':
         locs_2d = load_locations(withProjection=True)
-    elif genType == 'none':
+    elif genImageType == 'none':
         return
 
     # check feature dataset directory
     feat_dir = check_feat_dir(windowLength, overlap)
 
     # check feature dataset directory
-    img_dir = check_img_dir(windowLength, overlap, genType=genType, pixelCount=pixelCount[0], genMethod=method,
+    img_dir = check_img_dir(windowLength, overlap, genImageType=genImageType, pixelCount=pixelCount[0], genMethod=method,
                             edgeless=edgeless)
 
     # EEG Files
@@ -83,9 +85,9 @@ def gen_images_from_features(windowLength, overlap, pixelCount=[8, 8], genType='
                 features = scipy.io.loadmat(feat_file_name)['features']
                 # gen images
                 tic()
-                if genType == 'basic':
+                if genImageType == 'basic':
                     images_timewin = gen_images_basic(np.array(locs_2d), features, normalize=False)
-                elif genType == 'advanced':
+                elif genImageType == 'advanced':
                     images_timewin = gen_images(np.array(locs_2d), features, pixelCount[0], normalize=True,
                                                 edgeless=edgeless, method=method, multip=True)
                 toc()
@@ -301,7 +303,7 @@ def gen_data(featureParams, timingParams):
 
     # generate images from features
     gen_images_from_features(featureParams.windowLength, featureParams.overlap, pixelCount=featureParams.pixelCount,
-                             genType=featureParams.genType, method=featureParams.genMethod,
+                             genImageType=featureParams.genImageType, method=featureParams.genMethod,
                              edgeless=featureParams.edgeless)
 
     # generate sample labels

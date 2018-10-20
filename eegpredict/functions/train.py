@@ -2,11 +2,9 @@
 from __future__ import print_function
 
 import numpy as np
-import lasagne
 import time
 from sklearn.metrics import accuracy_score, log_loss
 from functions.utils import dashed_line
-from functions.model import backup_network_params, restore_network_params
 from functions.train_utils import reformat_data, train_with_iterate_minibatches, test_with_iterate_minibatches,\
     test_per_label, print_epoch
 from functions.globals import TrainResult, EpochParams, TestParams

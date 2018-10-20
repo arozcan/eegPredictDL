@@ -57,17 +57,29 @@ def scale_data(trainData, validData, testData, withMean=False, fitAllTrainData=F
 
 def reformat_data(fold, data, labels, weights, seqWinCount, scaleData=True, withMean=False, fitAllTrainData = False):
     trainData = Data()
-    trainData.X = np.asarray([data[fold[0] + i] for i in range(seqWinCount)])
-    trainData.Y = labels[fold[0]]
-    trainData.W = weights[fold[0]]
+    trainData.Xfold = fold[0]
+    trainData.Xidx = np.unique(np.stack([trainData.Xfold + i for i in range(seqWinCount)]).ravel())
+    trainData.Xlut = dict({i: j for i, j in zip(trainData.Xidx, range(len(trainData.Xidx)))})
+    trainData.X = data[trainData.Xidx]
+    trainData.Y = labels[trainData.Xfold]
+    trainData.W = weights[trainData.Xfold ]
+    trainData.SWC = seqWinCount
 
     validData = Data()
-    validData.X = np.asarray([data[fold[1] + i] for i in range(seqWinCount)])
-    validData.Y = labels[fold[1]]
+    validData.Xfold = fold[1]
+    validData.Xidx = np.unique(np.stack([validData.Xfold + i for i in range(seqWinCount)]).ravel())
+    validData.Xlut = dict({i: j for i, j in zip(validData.Xidx, range(len(validData.Xidx)))})
+    validData.X = data[validData.Xidx]
+    validData.Y = labels[validData.Xfold]
+    validData.SWC = seqWinCount
 
     testData = Data()
-    testData.X = np.asarray([data[fold[2] + i] for i in range(seqWinCount)])
-    testData.Y = labels[fold[2]]
+    testData.Xfold = fold[2]
+    testData.Xidx = np.unique(np.stack([testData.Xfold + i for i in range(seqWinCount)]).ravel())
+    testData.Xlut = dict({i: j for i, j in zip(testData.Xidx, range(len(testData.Xidx)))})
+    testData.X = data[testData.Xidx]
+    testData.Y = labels[testData.Xfold]
+    testData.SWC = seqWinCount
 
     # Scale data by using mean and variance of features
     if scaleData:
@@ -85,12 +97,8 @@ def iterate_minibatches_train(trainData, batchsize, shuffle=False):
     """
     Iterates over the samples returing batches of size batchsize.
     """
-    multiWin = True if trainData.X.shape[0] < trainData.X.shape[1] else False
 
-    if not multiWin:
-        inputLen = trainData.X.shape[0]
-    else:
-        inputLen = trainData.X.shape[1]
+    inputLen = trainData.Xfold.shape[0]
     assert inputLen == len(trainData.Y)
     if shuffle:
         indices = np.arange(inputLen)
@@ -101,10 +109,13 @@ def iterate_minibatches_train(trainData, batchsize, shuffle=False):
         else:
             excerpt = slice(start_idx, start_idx + batchsize)
 
-        if not multiWin:
-            yield trainData.X[excerpt], trainData.Y[excerpt], trainData.W[excerpt]
+        if trainData.SWC > 1:
+            Xdata = np.stack(np.stack(
+                    trainData.X[trainData.Xlut[i+j]] for i in trainData.Xfold[excerpt]) for j in range(trainData.SWC))
+            yield Xdata, trainData.Y[excerpt], trainData.W[excerpt]
         else:
-            yield trainData.X[:, excerpt], trainData.Y[excerpt], trainData.W[excerpt]
+            Xdata=np.stack(trainData.X[trainData.Xlut[i]] for i in trainData.Xfold[excerpt])
+            yield Xdata, trainData.Y[excerpt], trainData.W[excerpt]
 
 
 def iterate_minibatches_test(testData, batchsize, shuffle=False, index=None):
@@ -113,16 +124,13 @@ def iterate_minibatches_test(testData, batchsize, shuffle=False, index=None):
     """
     multiWin = True if testData.X.shape[0] < testData.X.shape[1] else False
 
-    if not multiWin:
-        if index:
-            input = testData.X[index]
-            target = testData.Y[index]
-        inputLen = input.shape[0]
+    if index:
+        input = testData.Xfold[index]
+        target = testData.Y[index]
     else:
-        if index:
-            input = testData.X[:, index]
-            target = testData.Y[index]
-        inputLen = input.shape[1]
+        input = testData.Xfold
+        target = testData.Y
+    inputLen = input.shape[0]
     assert inputLen == len(target)
     if shuffle:
         indices = np.arange(inputLen)
@@ -133,24 +141,26 @@ def iterate_minibatches_test(testData, batchsize, shuffle=False, index=None):
         else:
             excerpt = slice(start_idx, start_idx + batchsize)
 
-        if not multiWin:
-            yield input[excerpt], target[excerpt]
+        if testData.SWC > 1:
+            Xdata = np.stack(
+                np.stack(testData.X[testData.Xlut[i + j]] for i in input[excerpt]) for j in range(testData.SWC))
+            yield Xdata, target[excerpt]
         else:
-            yield input[:, excerpt], target[excerpt]
+            Xdata = np.stack(testData.X[testData.Xlut[i]] for i in input[excerpt])
+            yield Xdata, target[excerpt]
+
 
 
 def train_with_iterate_minibatches(trainFn, trainData, trainParams):
     trainErr = 0
     trainAcc = 0
-    trainBatches = 0
     for batch in iterate_minibatches_train(trainData, trainParams.batchSize, shuffle=False):
         inputs, targets, weights = batch
         err, acc = trainFn(inputs, targets, weights, trainParams.l2)
-        trainErr += err
-        trainAcc += acc
-        trainBatches += 1
-    trainErr = trainErr / trainBatches
-    trainAcc = trainAcc / trainBatches
+        trainErr += err * len(targets)
+        trainAcc += acc * len(targets)
+    trainErr = trainErr / len(trainData.Y)
+    trainAcc = trainAcc / len(trainData.Y)
     return trainErr, trainAcc
 
 
@@ -165,16 +175,16 @@ def test_with_iterate_minibatches(testFn, testData, trainParams):
         testErr = 0
         testAcc = 0
         testPred = []
-        testBatches = 0
+        testLen = 0
         for batch in iterate_minibatches_test(testData, trainParams.batchSize, shuffle=False, index=index):
             inputs, targets = batch
             err, acc, pred = testFn(inputs, targets)
-            testErr += err
-            testAcc += acc
-            testBatches += 1
+            testErr += err * len(targets)
+            testAcc += acc * len(targets)
+            testLen += len(targets)
             testPred = pred if testPred == [] else np.vstack((testPred, pred))
-        testErrAll += testErr / testBatches
-        testAccAll += testAcc / testBatches
+        testErrAll += testErr / testLen
+        testAccAll += testAcc / testLen
         testPredAll.append(testPred)
     testErrAll = testErrAll / len(u_index)
     testAccAll = testAccAll / len(u_index)
@@ -190,10 +200,11 @@ def test_per_label(testFn, testData):
     u_index = [range(u_index[i], u_index[i + 1]) for i in u]
     multiWin = True if testData.X.shape[0] < testData.X.shape[1] else False
     for index in u_index:
-        if not multiWin:
-            input = testData.X[index]
+        if testData.SWC > 1:
+            input = np.stack(
+                np.stack(testData.X[testData.Xlut[i + j]] for i in testData.Xfold[index]) for j in range(testData.SWC))
         else:
-            input = testData.X[:, index]
+            input = np.stack(testData.X[testData.Xlut[i]] for i in testData.Xfold[index])
         err, acc, pred = testFn(input, testData.Y[index])
         testErr += err
         testAcc += acc
@@ -201,32 +212,6 @@ def test_per_label(testFn, testData):
     testErr = testErr / len(u_index)
     testAcc = testAcc / len(u_index)
     return testErr, testAcc, testPred
-
-
-def print_epoch(epochParams, state='begin'):
-    dict = {0: ['epoch', 'epoch       ', '{:3}         '],
-            1: ['trainErr', 'train loss  ', '{:.6f}     '],
-            2: ['validErr', 'valid loss  ', '{:.6f}     '],
-            3: ['trainValRatio', 'train/valid ', '{:.3f}        '],
-            4: ['trainAcc', 'train accu  ', '{:3.3f}%       '],
-            5: ['validAcc', 'valid accu  ', '{:3.3f}%       '],
-            6: ['duration', 'duration    ', '{:.3f}s       ']}
-    text = ""
-    if state == 'begin':
-        line1 = "\n"
-        line2 = "\n"
-        for i in dict:
-            line1 += dict[i][1] + '\t'
-            line2 += '------------' + '\t'
-        text += line1 + line2
-    elif state == 'step':
-        line1 = ""
-        for i in dict:
-            line1 += dict[i][2].format(epochParams.__getattribute__(dict[i][0])[-1]) + '\t'
-        text += line1
-    elif state == 'end':
-        print("")
-    print(text)
 
 
 def print_epoch(epochParams, state='begin'):

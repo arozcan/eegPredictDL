@@ -1,4 +1,3 @@
-import numpy as np
 import theano
 import lasagne
 import theano.tensor as T

@@ -5,12 +5,11 @@ import pickle
 import scipy.io
 import numpy as np
 from sklearn.model_selection import LeaveOneGroupOut, KFold
-from functions.io_utils import check_img_dir, check_label_dir, check_feat_dir
+from functions.io_utils import check_img_dir, check_label_dir, check_feat_dir, save_results
 from functions import globals
-from functions.model import create_model
 from functions.train import train_model
 from functions.math_utils import normal_prob_signal
-from functions.plot_data import plot_subject_prediction, plot_subject_scores
+from functions.plot_data import plot_subject_prediction_train, plot_subject_scores
 
 
 # deterministic random
@@ -40,17 +39,20 @@ def load_data(featureParams, timingParams, subject):
                               timingParams.postictalLen, timingParams.minPreictalLen, timingParams.minInterictalLen,
                               timingParams.excludedLen, timingParams.sphLen)
 
-    if featureParams.genType == 'none':
+    if featureParams.genImageType == 'none':
         # check feature dataset directory
         feat_dir = check_feat_dir(featureParams.windowLength, featureParams.overlap)
     else:
         # check feature dataset directory
-        img_dir = check_img_dir(featureParams.windowLength, featureParams.overlap, featureParams.genType,
+        img_dir = check_img_dir(featureParams.windowLength, featureParams.overlap, featureParams.genImageType,
                                 featureParams.pixelCount[0], featureParams.genMethod, featureParams.edgeless)
 
     subject_file_name = lbl_dir + '/' + 'subject_' + str(subject) + '.mat'
 
     if os.path.isfile(subject_file_name):
+
+        print("Subject-{} data loading".format(subject+1) )
+
         # open subject label data
         pickle_in = open(subject_file_name, "rb")
         subject_ = pickle.load(pickle_in)
@@ -63,7 +65,7 @@ def load_data(featureParams, timingParams, subject):
 
         data_all = []
         for record in subject_.records:
-            if featureParams.genType == 'none':
+            if featureParams.genImageType == 'none':
                 feat_file_name = feat_dir + '/' + 'record_' + str(record[5]) + '.mat'
                 features = scipy.io.loadmat(feat_file_name)['features']
                 features = np.swapaxes(features, 1, 2)
@@ -75,6 +77,13 @@ def load_data(featureParams, timingParams, subject):
                 images_timewin = images_timewin[:, featureParams.featureTypes]
                 data_all = images_timewin if data_all == [] else np.vstack((data_all,images_timewin))
 
+        if np.asarray(subject_.interictal_parts).dtype != 'object':
+            subject_.interictal_parts = np.expand_dims(subject_.interictal_parts, axis=0).tolist()
+        if np.asarray(subject_.preictal_parts).dtype != 'object':
+            subject_.preictal_parts = np.expand_dims(subject_.preictal_parts, axis=0).tolist()
+        if np.asarray(subject_.excluded_parts).dtype != 'object':
+            subject_.excluded_parts = np.expand_dims(subject_.excluded_parts, axis=0).tolist()
+
         if len(data_all) != len(subject_.all_labels):
             exit('Dataset Length Error!')
         return data_all, subject_.all_labels, weights, subject_.interictal_parts, subject_.preictal_parts, subject_.excluded_parts
@@ -82,7 +91,7 @@ def load_data(featureParams, timingParams, subject):
         exit('Dataset Load Error!')
 
 def organize_dataset(dataset, interictal_parts, preictal_parts, excluded_parts, foldCount=5, seqWinCount=5,
-                     kFoldShuffle=True, underSample = True, evalExclued = False):
+                     kFoldShuffle=True, underSample = True, evalExcluded = False):
 
     # remove last seqWinCount sample from all parts
     for p in range(len(interictal_parts)):
@@ -100,7 +109,7 @@ def organize_dataset(dataset, interictal_parts, preictal_parts, excluded_parts, 
     interictal_split = np.array_split(interictal_data, len(preictal_parts))
 
     # concatenate excluded parts
-    if evalExclued:
+    if evalExcluded:
         excluded_data = []
         for part in excluded_parts:
             excluded_data = part if excluded_data == [] else np.hstack((excluded_data, part))
@@ -129,7 +138,7 @@ def organize_dataset(dataset, interictal_parts, preictal_parts, excluded_parts, 
         interictal_train, interictal_test, train_groups = interictal_data[train_index], interictal_data[test_index], \
                                                           interictal_groups[train_index]
         # merge excluded part with interictal test
-        if evalExclued:
+        if evalExcluded:
             interictal_test = np.hstack((interictal_test, excluded_split[i]))
 
         # K fold cross-validation
@@ -201,6 +210,24 @@ def organize_dataset(dataset, interictal_parts, preictal_parts, excluded_parts, 
     return fold_pairs, ratio
 
 
+def check_data(interictal_parts, preictal_parts, featureParams, minPrePartCount=3, minIntHour = 3):
+
+    stepLen = (featureParams.windowLength * (1 - featureParams.overlap))
+    minIntLen = int(minIntHour * (60*60)/stepLen)
+    intLen = 0
+    for part in interictal_parts:
+        intLen += len(part)
+    if len(preictal_parts) < minPrePartCount:
+        print("Not enough preictal data!")
+        return False
+    elif intLen < minIntLen:
+        print("Not enough interictal data!")
+        return False
+    else:
+        return True
+
+
+
 def predict_data(featureParams, timingParams, trainDataParams, trainParams, modelParams):
 
     dataset = globals.Dataset()
@@ -209,6 +236,10 @@ def predict_data(featureParams, timingParams, trainDataParams, trainParams, mode
     dataset.data, dataset.labels, dataset.weights, interictal_parts, preictal_parts, excluded_parts\
         = load_data(featureParams, timingParams, trainDataParams.subject)
 
+    # Check dataset's preictal and interictal lengths
+    if not check_data(interictal_parts, preictal_parts, featureParams):
+        return
+
     # Organize dataset as train, valid and test sets
     dataset.fold_pairs, trainDataParams.dataRatio = organize_dataset(dataset,
                                                                      interictal_parts, preictal_parts, excluded_parts,
@@ -216,16 +247,20 @@ def predict_data(featureParams, timingParams, trainDataParams, trainParams, mode
                                                                      seqWinCount=trainDataParams.seqWinCount,
                                                                      kFoldShuffle=trainDataParams.kFoldShuffle,
                                                                      underSample=trainDataParams.underSample,
-                                                                     evalExclued=trainDataParams.evalExclued )
+                                                                     evalExcluded=trainDataParams.evalExcluded )
 
     # Create learning model
+    from functions.model import create_model
     model = create_model(modelParams, featureParams, trainParams, trainDataParams)
 
     # Train model
     trainResult = train_model(model, dataset)
 
-    plot_subject_prediction(trainResult.testParams, dataset.fold_pairs, dataset.labels)
+    # Save results
+    save_results(trainResult, featureParams, timingParams, trainDataParams, trainParams, modelParams, dataset)
 
-    plot_subject_scores(trainResult.testParams, dataset.fold_pairs, dataset.labels, featureParams)
+    plot_subject_prediction_train(trainResult.testParams, dataset.fold_pairs, dataset.labels)
+
+    plot_subject_scores(trainResult.testParams, dataset.fold_pairs, dataset.labels, featureParams, timingParams)
 
 
