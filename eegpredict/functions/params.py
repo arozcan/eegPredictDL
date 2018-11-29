@@ -392,7 +392,10 @@ def init_model_parameters(jobParams):
 def init_params(paramList, inParams):
     for params, values in zip(inParams.keys(), inParams.values()):
         if params in paramList.__dict__:
-            paramList.__setattr__(params, values)
+            if type(paramList.__getattribute__(params)) == dict:
+                paramList.__getattribute__(params).__setitem__("active", values)
+            else:
+                paramList.__setattr__(params, values)
     return paramList
 
 

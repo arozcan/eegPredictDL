@@ -51,7 +51,7 @@ def load_data(featureParams, timingParams, subject):
 
     if os.path.isfile(subject_file_name):
 
-        print("Subject-{} data loading".format(subject+1) )
+        print("Subject-{} data loading".format(subject) )
 
         # open subject label data
         pickle_in = open(subject_file_name, "rb")
@@ -134,12 +134,12 @@ def organize_dataset(dataset, interictal_parts, preictal_parts, excluded_parts, 
     kf = KFold(n_splits=foldCount, shuffle=kFoldShuffle, random_state=globals.random_state)
 
     interictal_fold = []
-    for i, (train_index, test_index) in zip(range(len(interictal_split)), logo.split(interictal_data, groups=interictal_groups)):
+    for t, (train_index, test_index) in zip(range(len(interictal_split)), logo.split(interictal_data, groups=interictal_groups)):
         interictal_train, interictal_test, train_groups = interictal_data[train_index], interictal_data[test_index], \
                                                           interictal_groups[train_index]
         # merge excluded part with interictal test
-        if evalExcluded:
-            interictal_test = np.hstack((interictal_test, excluded_split[i]))
+        # if evalExcluded:
+        #     interictal_test = np.hstack((interictal_test, excluded_split[t]))
 
         # K fold cross-validation
         i_fold = [[[], [], interictal_test] for i in range(foldCount)]
@@ -161,9 +161,14 @@ def organize_dataset(dataset, interictal_parts, preictal_parts, excluded_parts, 
         np.random.shuffle(interictal_fold[i])
 
     preictal_fold = []
-    for train_index, test_index in logo.split(preictal_data, groups=preictal_groups):
+    for t, (train_index, test_index) in zip(range(len(preictal_parts)), logo.split(preictal_data, groups=preictal_groups)):
         preictal_train, preictal_test, train_groups = preictal_data[train_index], preictal_data[test_index], \
                                                       preictal_groups[train_index]
+
+        # merge excluded part with interictal test
+        if evalExcluded:
+            preictal_test = np.hstack((preictal_test, excluded_split[t]))
+
         # K fold cross-validation
         p_fold = [[[], [], preictal_test] for i in range(foldCount)]
         fold_order = range(foldCount)

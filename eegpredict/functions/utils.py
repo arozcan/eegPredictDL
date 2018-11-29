@@ -1,8 +1,15 @@
+import sys
 import time
 import itertools as it
 import numpy as np
 from functions import globals
 
+def in_notebook():
+    """
+    Returns ``True`` if the module is running in IPython kernel,
+    ``False`` if in IPython shell or other Python shell.
+    """
+    return 'ipykernel' in sys.modules
 
 def TicTocGenerator():
     # Generator that returns time differences
@@ -79,3 +86,29 @@ def merge_dicts(dict_args):
     for dictionary in dict_args:
         result.update(dictionary)
     return result
+
+
+def compareClass(validDict):
+    dictTree={}
+    # for dList in dictList:
+    #     for dlist_ in dList:
+    #         dPre = None
+    #         for d in dlist_:
+    #             if d in validDict:
+    #                 if dPre == None:
+    #                     if not dictTree.has_key(d):
+    #                         dictTree.update({d: [dlist_.get(d)]})
+    #                     else:
+    #
+    #                 else:
+    #
+    #                 if not dictTree.has_key(d) and dPre == None:
+    #                     dictTree.update({d:[dlist_.get(d)]})
+    #                 elif not type(dictTree[dPre]) == dict:
+    #                     dictTree[dPre].append(dlist_.get(d))
+    #                     dictTree[dPre] = {d:[dictTree[dPre]]}
+    #                 else:
+    #                     dictTree.get(d).add(dlist_.get(d))
+    #                 dPre = d
+
+    print()

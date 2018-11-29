@@ -1,4 +1,5 @@
 import numpy as np
+from pandas import ExcelWriter
 
 # Folder and File Definitions
 # dataset_link='/Volumes/MacHDD/Dataset/physiobank/chbmit/'
@@ -13,6 +14,7 @@ file_lbl_dataset = '../data/lblData/'
 file_test = '../test/'
 file_test_db = '../test/test.db'
 file_model = '../model/'
+file_comparison = '../comparison/'
 
 labelTypes = {
     "interictal": 0,
@@ -180,6 +182,64 @@ class TestParams(object):
         self.testErr = []
         self.testAcc = []
         self.testPred = []
+
+class CompareClass(object):
+    pass
+    def __init__(self, validParams, compareParams, result):
+        self.result = result[0]
+        for vp in validParams:
+            vp = vp.replace(' ','').split(',')
+            for d in vp:
+                if d in compareParams:
+                    self.__setattr__(d, compareParams[d])
+
+    def get_cutoff_mean_values(self, params=None):
+        cutoff_idx=self.result['cutoff'][-1]
+        if params:
+            if type(self.result[params])==list:
+                return self.result[params][-1][cutoff_idx]
+            else:
+                return self.result[params]
+        else:
+            fpr= self.result['fpr'][-1][cutoff_idx]
+            tpr=self.result['tpr'][-1][cutoff_idx]
+            tresh=self.result['thresholds'][-1][cutoff_idx]
+            return {"fpr": fpr, "tpr": tpr, "tresh": tresh}
+
+
+class SelectedCompareClass(object):
+    def __init__(self, selectedParams, compareParams, compareArray):
+        self.selectedParams=selectedParams
+        self.compareParams=compareParams
+        self.compareArray=compareArray
+
+
+class excelWriter(object):
+    def __init__(self, fileName):
+        self.writer = ExcelWriter(fileName+'.xlsx', engine="xlsxwriter")
+        self.sheetCount = 1
+        self.book = self.writer.book
+
+    def write(self, data, sheetName="Sheet", title=None):
+        sName = sheetName + str(self.sheetCount)
+        data.to_excel(self.writer, sheet_name=sName, startrow=(1 if title else 0))
+
+        sheet=self.writer.sheets[sName]
+        sheet.set_column(0, last_col=data.columns.size, width=18)
+        if title:
+            merge_format = self.book.add_format({
+                'bold': 1,
+                'border': 1,
+                'align': 'center',
+                'valign': 'vcenter',
+                'fg_color': 'yellow'})
+            sheet.merge_range(first_row=0,last_row=0, first_col=0, last_col=data.columns.size, data=title, cell_format=merge_format)
+        self.sheetCount += 1
+
+    def __del__(self):
+        self.writer.save()
+        self.writer.close()
+
 
 
 

@@ -192,22 +192,24 @@ def get_from_test_db(feats):
         db = sqlite3.connect(db_name)
         cursor = db.cursor()
 
-        sql = "SELECT id FROM test WHERE "
-        for feat, idx in zip(feats.keys(), range(len(feats.keys()))):
-            if idx:
-                sql += " AND "
-            sql += str(feat) + "="
-            val = feats.get(feat)
-            if isinstance(val, basestring):
-                sql += "'" +str(val)+ "'"
-            elif isinstance(val, np.ndarray) or isinstance(val, list):
-                sql += "'" + str(val).replace(" ", "") + "'"
-            elif isinstance(val, bool) or isinstance(val, int):
-                sql += str(int(val))
-            elif isinstance(val, dict):
-                sql += str(int(val["active"]))
-            elif isinstance(val, float):
-                sql += str(float(val))
+        sql = "SELECT id FROM test"
+        if feats:
+            sql += " WHERE "
+            for feat, idx in zip(feats.keys(), range(len(feats.keys()))):
+                if idx:
+                    sql += " AND "
+                sql += str(feat) + "="
+                val = feats.get(feat)
+                if isinstance(val, basestring):
+                    sql += "'" +str(val)+ "'"
+                elif isinstance(val, np.ndarray) or isinstance(val, list):
+                    sql += "'" + str(val).replace(" ", "") + "'"
+                elif isinstance(val, bool) or isinstance(val, int):
+                    sql += str(int(val))
+                elif isinstance(val, dict):
+                    sql += str(int(val["active"]))
+                elif isinstance(val, float):
+                    sql += str(float(val))
         cursor.execute(sql)
         rows = cursor.fetchall()
         db.commit()

@@ -151,7 +151,7 @@ def gen_labels(windowLength, overlap, preictalLen, postictalLen, minPreictalLen=
 
     # find other labels
     for subject, s in zip(subject_list, range(len(subject_list))):
-        subject_file_name = lbl_dir + '/' + 'subject_' + str(s) + '.mat'
+        subject_file_name = lbl_dir + '/' + 'subject_' + str(s+1) + '.mat'
         if not os.path.isfile(subject_file_name):
             subject_ = globals.SubjectClass()
 

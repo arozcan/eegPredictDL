@@ -52,14 +52,15 @@ def my_binary_clf_curve(y_true, y_score, pos_label=1, neg_label=0, refractory_pe
 
 
     min_pos_score = np.min([np.max(y_score[idx[0]:idx[1]]) for idx in pos_idx])
-
-
+    max_pos_scores = [np.max(y_score[idx[0]:idx[1]]) for idx in pos_idx]
 
     imp_tresh = [0,1]
-    for idx in pos_idx:
-        imp_tresh.append(np.max(y_score[range(idx[0], idx[1])]))
-    tresholds = np.arange(min_pos_score, 1, float(1)/point)
-    tresholds = np.sort(np.unique(np.hstack((tresholds, imp_tresh))))[::-1]
+    imp_tresh= np.hstack((imp_tresh, max_pos_scores, np.add(max_pos_scores, 0.00000001),
+                          np.add(max_pos_scores, -0.00000001)))
+    tresholds = np.sort(np.unique(imp_tresh))[::-1]
+    # tresholds = np.arange(min_pos_score, 1, float(1)/point)
+    # tresholds = np.sort(np.unique(np.hstack((tresholds, imp_tresh))))[::-1]
+
 
     tps = []
     fps = []
@@ -202,7 +203,7 @@ def my_roc_curve(y_true, y_score, pos_label=1, neg_label=0, refractory_period=1,
     if fps[-1] <= 0:
         fpr = np.repeat(np.nan, fps.shape)
     else:
-        p_count = np.count_nonzero(y_true == pos_label) + np.count_nonzero(y_true == neg_label)
+        p_count = np.count_nonzero(y_true == neg_label)
         div = p_count/rate_period
         fpr = fps / div
 
@@ -213,5 +214,8 @@ def my_roc_curve(y_true, y_score, pos_label=1, neg_label=0, refractory_period=1,
 
     tpr = np.r_[0, tpr]
     fpr = np.r_[0, fpr]
+    fps = np.r_[0, fps]
+    tps = np.r_[0, tps]
+    thresholds = np.r_[1, thresholds]
 
-    return fpr, tpr, thresholds
+    return fpr, tpr, fps, tps, thresholds

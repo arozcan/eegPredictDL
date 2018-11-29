@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import os
 from functions import globals
 from functions.gen_data import gen_data
 from functions.params import init_model_parameters, init_feature_types, init_params
 from functions.io_utils import get_from_test_db, load_results, check_test_results
-from functions.plot_data import compare_subject_roc, compare_subject_prediction, plot_subject_roc, plot_subject_prediction
+from functions.plot_data import compare_subject_roc, compare_subject_prediction, plot_subject_roc, \
+    plot_subject_prediction, compare_various_result
 from functions.utils import print_params, merge_dicts
 from functions.predict_data import predict_data
 import numpy as np
@@ -39,7 +41,6 @@ def do_job(job, **jobParams):
         Define Parameters
         """
         predictParams = jobParams.get("predictParams")
-        predictParams.update({"subject": predictParams.get("subject") - 1})
 
         # init model parameters
         modelParams, jobParams = init_model_parameters(predictParams)
@@ -73,6 +74,7 @@ def do_job(job, **jobParams):
     if job == "compare":
 
         compareSet = jobParams.get("compareSet")
+        print("Subject: {}".format(compareSet[0].get("subject")))
         plotTitle = jobParams.get("plotTitle")
         plotLabels = jobParams.get("plotLabels")
 
@@ -80,14 +82,18 @@ def do_job(job, **jobParams):
         for feats in compareSet:
             ids = get_from_test_db(feats)
             for id in ids:
-                results.append(load_results(id[0]))
-
+                results.append(load_results(str(id[0])))
         if results:
             compare_subject_roc(results, plotLabels, plotTitle)
             compare_subject_prediction(results, plotLabels, plotTitle)
 
-    if job == "plot":
+    if job == "compare_various":
+        compareParams = jobParams.get("compareParams")
+        validParams = jobParams.get("validParams")
+        selectSet = jobParams.get("selectSet")
+        compare_various_result(compareParams, validParams, selectSet)
 
+    if job == "plot":
         plotSet = jobParams.get("plotSet")
         plotTitle = jobParams.get("plotTitle")
         plotLabels = jobParams.get("plotLabels")
@@ -102,17 +108,28 @@ def do_job(job, **jobParams):
             plot_subject_roc(result, plotTitle)
             plot_subject_prediction(result, plotTitle)
 
+
 if __name__ == '__main__':
 
     # subject list
-    subjectList = np.array([1, 2, 3, 5, 7, 9, 10, 13, 14, 16, 17, 18, 20, 21, 23])
+    subjectList = np.array([1, 2, 3, 5, 7, 9, 10, 13, 14, 16, 17, 18, 19, 20, 21, 23])
+
 
     # Train with single parameters
-    trainWithSingleParams = True
+    trainWithSingleParams = False
     if trainWithSingleParams:
-        do_job(job="predict", predictParams={"subject": 1, "modelName": modelName[4], "pixelCount": pixelCount[2],
+        do_job(job="predict", predictParams={"subject": 18, "modelName": modelName[4], "pixelCount": pixelCount[2],
                                              "preictalLen": 60, "excludedLen": 240, "onlineWeights": True, "l2": 0.01,
-                                             "earlyStopping": True, "adaptiveL2": False})
+                                             "earlyStopping": True, "adaptiveL2": False, "evalExcluded": False,
+                                             "minPreictalLen":5, "postictalLen":10})
+
+
+    #Plot train results
+    plotResults = False
+    if plotResults:
+        do_job(job="plot", plotTitle= ["subject", "modelName", "preictalLen"],
+               plotSet=[{"modelName": modelName[10], "pixelCount": pixelCount[2], "subject": 18, "excludedLen": 240, "evalExcluded": False}])
+
 
     # Train with various parameters
     trainWithVariousParams = False
@@ -123,9 +140,9 @@ if __name__ == '__main__':
                      {"modelName": modelName[4], "pixelCount": pixelCount[2]},
                      {"modelName": modelName[10], "pixelCount": pixelCount[2]}]
 
-        timingList = [{"preictalLen": 30, "excludedLen": 60},
-                      {"preictalLen": 30, "excludedLen": 120},
-                      {"preictalLen": 30, "excludedLen": 240},
+        timingList = [{"preictalLen": 30, "excludedLen": 60, "onlineWeights": False},
+                      {"preictalLen": 30, "excludedLen": 120, "onlineWeights": False},
+                      {"preictalLen": 30, "excludedLen": 240, "onlineWeights": False},
                       {"preictalLen": 60, "excludedLen": 120, "onlineWeights": False},
                       {"preictalLen": 60, "excludedLen": 120, "onlineWeights": True},
                       {"preictalLen": 60, "excludedLen": 240, "onlineWeights": False},
@@ -140,13 +157,6 @@ if __name__ == '__main__':
         for trialParam in trialParams:
             do_job(job="predict", predictParams=merge_dicts(trialParam))
 
-    #Plot train results
-    plotResults = False
-    if plotResults:
-        do_job(job="plot", plotTitle= ["subject", "modelName", "preictalLen"],
-               plotSet=[{"modelName": modelName[4], "pixelCount": pixelCount[2], "subject": 1, "excludedLen": 240}])
-
-
     # Compare train results
     compareResults = False
     if compareResults:
@@ -160,6 +170,36 @@ if __name__ == '__main__':
                        {"modelName": modelName[10], "pixelCount": pixelCount[2], "subject": i, "excludedLen": 240,
                         "adaptiveL2": False, "onlineWeights": False, "preictalLen": 60}
                        ])
+
+    # Compare with various parameters
+    compareWithVariousParams = True
+    if compareWithVariousParams:
+        subjectList = [{"subject": subject} for subject in subjectList]
+
+        modelList = [{"modelName": modelName[1], "pixelCount": pixelCount[0]},
+                     {"modelName": modelName[4], "pixelCount": pixelCount[2]},
+                     {"modelName": modelName[10], "pixelCount": pixelCount[2]}]
+
+        timingList = [{"preictalLen": 30, "excludedLen": 60, "onlineWeights": False},
+                      {"preictalLen": 30, "excludedLen": 120, "onlineWeights": False},
+                      {"preictalLen": 30, "excludedLen": 240, "onlineWeights": False},
+                      {"preictalLen": 60, "excludedLen": 120, "onlineWeights": False},
+                      {"preictalLen": 60, "excludedLen": 120, "onlineWeights": True},
+                      {"preictalLen": 60, "excludedLen": 240, "onlineWeights": False},
+                      {"preictalLen": 60, "excludedLen": 240, "onlineWeights": True}]
+
+        trainList = [{"l2": 0, "earlyStopping": True, "adaptiveL2": False},
+                     {"l2": 0.01, "earlyStopping": True, "adaptiveL2": False}]
+
+
+
+        compareParams = [timingList, trainList, subjectList, modelList]
+        do_job(job="compare_various", compareParams=compareParams,
+               validParams=["subject", "modelName", "preictalLen,excludedLen,onlineWeights", "l2"],
+               selectSet=[ timingList,
+                           subjectList
+                           ])
+
 
     raw_input("Press Enter to continue...")
 
