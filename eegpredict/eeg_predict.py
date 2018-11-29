@@ -196,8 +196,7 @@ if __name__ == '__main__':
         compareParams = [timingList, trainList, subjectList, modelList]
         do_job(job="compare_various", compareParams=compareParams,
                validParams=["subject", "modelName", "preictalLen,excludedLen,onlineWeights", "l2"],
-               selectSet=[ timingList,
-                           subjectList
+               selectSet=[ timingList
                            ])
 
 
