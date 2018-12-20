@@ -181,7 +181,8 @@ def plot_subject_roc(result, plotTitle=None):
 
     fig, axes = plt.subplots(1, 1)
     fig.suptitle('ROC Analysis', fontweight='bold')
-    colors = cm.gist_ncar(np.linspace(0, 1, 8))
+    #colors = cm.gist_ncar(np.linspace(0, 1, 4))
+    colors =cm.tab20(np.linspace(0, 1, 20))
 
     featureParams = result['featureParams']
     timingParams = result['timingParams']
@@ -239,7 +240,8 @@ def plot_subject_prediction(result, plotTitle=None):
 
     fig, axes = plt.subplots(1, 1)
     fig.suptitle('Prediction Results', fontweight='bold')
-    colors = cm.gist_ncar(np.linspace(0, 1, 8))
+    #colors = cm.gist_ncar(np.linspace(0, 1, 4))
+    colors =cm.tab20(np.linspace(0, 1, 20))
     tickPeriod = 60*60
 
     featureParams = result['featureParams']
@@ -300,7 +302,8 @@ def compare_subject_roc(results, plotLabels=None, plotTitle=None):
 
     fig, axes = plt.subplots(1, 1)
     fig.suptitle('ROC Analysis', fontweight='bold')
-    colors = cm.gist_ncar(np.linspace(0, 1, 8))
+    #colors = cm.gist_ncar(np.linspace(0, 1, 4))
+    colors =cm.tab20(np.linspace(0, 1, 20))
 
     for result, color in zip(results, colors):
         featureParams = result['featureParams']
@@ -343,7 +346,7 @@ def compare_subject_roc(results, plotLabels=None, plotTitle=None):
                                                                                                  round(tpr[cutoff], 2)))
         print("\t"+plotLabel + "\tfpr:{:2.4f}\ttpr:{:2.4f}\tfps:{:2d}\ttps:{:2d}".format(fpr[cutoff],tpr[cutoff],int(fps[cutoff]),int(tps[cutoff])))
 
-    axes.set_ylabel("True Positive Rate (sensitivity)")
+    axes.set_ylabel("Sensitivity")
     axes.set_xlabel("False Positive Rate (per hour)")
     axes.set_ylim(0, 1.02)
     axes.set_xlim(-0.01, 1)
@@ -360,7 +363,8 @@ def compare_subject_prediction(results, plotLabels=None, plotTitle=None):
 
     fig, axes = plt.subplots(1, 1)
     fig.suptitle('Prediction Results', fontweight='bold')
-    colors = cm.gist_ncar(np.linspace(0, 1, 8))
+    #colors = cm.gist_ncar(np.linspace(0, 1, 4))
+    colors =cm.tab20(np.linspace(0, 1, 20))
     tickPeriod = 60*60
 
     for result, color in zip(results, colors):
@@ -395,7 +399,7 @@ def compare_subject_prediction(results, plotLabels=None, plotTitle=None):
             plotLabel = get_plot_label_values(result, plotLabels)
 
         axes.plot(testPredictsMean, label=plotLabel, color=color)
-    axes.set_ylabel("Prediction")
+    axes.set_ylabel("Prediction Value")
     axes.set_xlabel("Time (hour)")
     ticks = range(0, len(testPredictsMean), int(tickPeriod/stepLen))
     axes.set_xticks(ticks, minor=False)

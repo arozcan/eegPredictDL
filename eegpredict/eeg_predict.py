@@ -128,7 +128,32 @@ if __name__ == '__main__':
     plotResults = False
     if plotResults:
         do_job(job="plot", plotTitle= ["subject", "modelName", "preictalLen"],
-               plotSet=[{"modelName": modelName[10], "pixelCount": pixelCount[2], "subject": 18, "excludedLen": 240, "evalExcluded": False}])
+               plotSet=[{"modelName": modelName[10], "pixelCount": pixelCount[2], "subject": 20, "excludedLen": 60, "evalExcluded": False}])
+
+    # Compare train results
+    compareSubjectResults = True
+    if compareSubjectResults:
+        # do_job(job="compare", plotLabels=["modelName"], plotTitle=["subject"],
+        #        compareSet=[
+        #            {"modelName": modelName[1], "pixelCount": pixelCount[0], "subject": 1, "excludedLen": 60,
+        #             "adaptiveL2": False, "onlineWeights": False, "preictalLen": 30, "L2":0.0},
+        #            {"modelName": modelName[4], "pixelCount": pixelCount[2], "subject": 1, "excludedLen": 60,
+        #             "adaptiveL2": False, "onlineWeights": False, "preictalLen": 30, "L2":0.0},
+        #            {"modelName": modelName[10], "pixelCount": pixelCount[2], "subject": 1, "excludedLen": 60,
+        #             "adaptiveL2": False, "onlineWeights": False, "preictalLen": 30, "L2":0.0}
+        #            ])
+        do_job(job="compare", plotLabels=["l2","modelName"], plotTitle=["subject"],
+               compareSet=[
+                   {"modelName": modelName[10], "pixelCount": pixelCount[2], "subject": 2, "excludedLen": 60,
+                    "adaptiveL2": False, "onlineWeights": False, "preictalLen": 30, "L2": 0.0},
+                   {"modelName": modelName[10], "pixelCount": pixelCount[2], "subject": 2, "excludedLen": 60,
+                    "adaptiveL2": False, "onlineWeights": False, "preictalLen": 30, "L2": 0.01},
+                   {"modelName": modelName[4], "pixelCount": pixelCount[2], "subject": 2, "excludedLen": 60,
+                    "adaptiveL2": False, "onlineWeights": False, "preictalLen": 30, "L2": 0.0},
+                   {"modelName": modelName[4], "pixelCount": pixelCount[2], "subject": 2, "excludedLen": 60,
+                    "adaptiveL2": False, "onlineWeights": False, "preictalLen": 30, "L2": 0.01},
+               ])
+
 
 
     # Train with various parameters
